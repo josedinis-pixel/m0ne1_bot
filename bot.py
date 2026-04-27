@@ -200,3 +200,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+allowed_updates=Update.ALL_TYPES
