@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -9,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 DATA_FILE = "dados.json"
 
-# ── dados ──
 def load():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -23,7 +23,6 @@ def save(data):
 def eur(v):
     return f"{v:,.2f}€".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# ── handlers ──
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     msg = (
         "👋 *Olá! Sou o teu bot de despesas.*\n\n"
@@ -113,11 +112,9 @@ async def apagar(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
 async def mensagem(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    from datetime import datetime
     texto = update.message.text.strip()
     partes = texto.split(maxsplit=2)
 
-    # validar formato: +/-valor metodo descricao
     if len(partes) < 3:
         await update.message.reply_text(
             "❓ Formato inválido.\n\nExemplos:\n`-5.50 cartao cafe`\n`+100 fisico salario`",
@@ -128,7 +125,6 @@ async def mensagem(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     sinal_str, metodo_str, descricao = partes
     metodo_str = metodo_str.lower()
 
-    # tipo
     if sinal_str.startswith("+"):
         tipo = "entrada"
     elif sinal_str.startswith("-"):
@@ -137,7 +133,6 @@ async def mensagem(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❓ Começa com `+` para entrada ou `-` para saída.", parse_mode="Markdown")
         return
 
-    # valor
     try:
         valor = float(sinal_str.replace(",", ".").replace("+", "").replace("-", ""))
         if valor <= 0:
@@ -146,15 +141,12 @@ async def mensagem(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Valor inválido.", parse_mode="Markdown")
         return
 
-    # metodo
     if metodo_str in ("cartao", "cartão", "card", "c"):
         metodo = "cartao"
     elif metodo_str in ("fisico", "físico", "f", "cash", "dinheiro"):
         metodo = "fisico"
     else:
-        await update.message.reply_text(
-            "❌ Método inválido. Usa `cartao` ou `fisico`.", parse_mode="Markdown"
-        )
+        await update.message.reply_text("❌ Método inválido. Usa `cartao` ou `fisico`.", parse_mode="Markdown")
         return
 
     data = load()
@@ -188,7 +180,13 @@ def main():
     token = os.environ.get("BOT_TOKEN")
     if not token:
         raise ValueError("Define a variável de ambiente BOT_TOKEN")
-    app = Application.builder().token(token).build()
+
+    app = (
+        Application.builder()
+        .token(token)
+        .build()
+    )
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ajuda", ajuda))
     app.add_handler(CommandHandler("saldo", saldo))
@@ -196,8 +194,9 @@ def main():
     app.add_handler(CommandHandler("definir", definir))
     app.add_handler(CommandHandler("apagar", apagar))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensagem))
+
     logger.info("Bot iniciado!")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
